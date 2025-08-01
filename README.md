@@ -17,12 +17,6 @@ Reforzar el conocimiento de conceptos básicos de geometría a través de la aso
 - TailwindCSS (vía CDN)
 - JavaScript (sin frameworks externos)
 
-##  Vista previa
-![preview](https://via.placeholder.com/600x300.png?text=Vista+previa+del+Juego)
-
-##  Versión en línea (si la activas con GitHub Pages)
-[Ver juego en línea](https://tuUsuario.github.io/juego-geometria)
-
 ##  Estructura del proyecto
 juego-geometria/
 ├── index.html
