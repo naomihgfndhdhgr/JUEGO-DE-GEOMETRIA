@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Combinación - Geometría</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes bounce-celebration {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-20px); }
+            60% { transform: translateY(-10px); }
+        }
+        
+        @keyframes pulse-match {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes shake-wrong {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .celebration { animation: bounce-celebration 0.6s ease-in-out; }
+        .match-animation { animation: pulse-match 0.4s ease-in-out; }
+        .wrong-animation { animation: shake-wrong 0.4s ease-in-out; }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen p-4">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-white mb-2">🔺 Geometría Divertida 🔺</h1>
+            <p class="text-xl text-purple-100">Conecta cada término con su definición correcta</p>
+            <div class="mt-4 bg-white/20 rounded-lg p-4 inline-block">
+                <p class="text-white font-semibold">Puntuación: <span id="score" class="text-yellow-300">0</span> / 6</p>
+                <p class="text-purple-100 text-sm mt-1">Coincidencias correctas: <span id="matches">0</span></p>
+            </div>
+        </div>
+
+        <!-- Game Area -->
+        <div class="grid md:grid-cols-2 gap-8 mb-8">
+            <!-- Terms Column -->
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-6">
+                <h2 class="text-2xl font-bold text-white mb-4 text-center">📐 Términos</h2>
+                <div id="terms-container" class="space-y-3">
+                    <!-- Terms will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Definitions Column -->
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl p-6">
+                <h2 class="text-2xl font-bold text-white mb-4 text-center">📝 Definiciones</h2>
+                <div id="definitions-container" class="space-y-3">
+                    <!-- Definitions will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Hint System -->
+        <div class="bg-white/15 backdrop-blur-sm rounded-xl p-6 mb-6">
+            <h3 class="text-xl font-bold text-white mb-3">💡 Sistema de Pistas</h3>
+            <button id="hint-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                Obtener Pista (Quedan: <span id="hints-left">3</span>)
+            </button>
+            <div id="hint-display" class="mt-3 p-3 bg-yellow-100 rounded-lg hidden">
+                <p class="text-gray-800 font-medium"></p>
+            </div>
+        </div>
+
+        <!-- Celebration Area -->
+        <div id="celebration" class="text-center hidden">
+            <div class="text-6xl mb-4">🎉</div>
+            <h2 class="text-3xl font-bold text-white mb-2">¡Excelente Trabajo!</h2>
+            <p class="text-xl text-purple-100 mb-4">Has completado todas las combinaciones correctamente</p>
+            <button id="play-again" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors">
+                Jugar de Nuevo
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Game data
+        const gameData = [
+            {
+                term: "Triángulo",
+                definition: "Figura geométrica de tres lados y tres ángulos",
+                hint: "Tiene la misma cantidad de lados que ángulos, y son tres"
+            },
+            {
+                term: "Círculo",
+                definition: "Figura redonda donde todos los puntos están a la misma distancia del centro",
+                hint: "Es completamente redondo y no tiene esquinas"
+            },
+            {
+                term: "Rectángulo",
+                definition: "Cuadrilátero con cuatro ángulos rectos y lados opuestos iguales",
+                hint: "Tiene cuatro esquinas de 90 grados y parece una ventana"
+            },
+            {
+                term: "Perímetro",
+                definition: "La suma de todos los lados de una figura geométrica",
+                hint: "Si caminaras alrededor de una figura, esta sería la distancia total"
+            },
+            {
+                term: "Área",
+                definition: "El espacio que ocupa una figura geométrica en el plano",
+                hint: "Es lo que medirías si quisieras pintar toda la superficie de una figura"
+            },
+            {
+                term: "Ángulo",
+                definition: "Abertura formada por dos líneas que se encuentran en un punto",
+                hint: "Se forma cuando dos líneas se juntan, como las manecillas de un reloj"
+            }
+        ];
+
+        // Game state
+        let selectedTerm = null;
+        let selectedDefinition = null;
+        let matches = 0;
+        let hintsLeft = 3;
+        let usedHints = [];
+
+        // Initialize game
+        function initGame() {
+            matches = 0;
+            hintsLeft = 3;
+            usedHints = [];
+            selectedTerm = null;
+            selectedDefinition = null;
+            
+            updateScore();
+            updateHints();
+            
+            // Shuffle arrays for randomness
+            const shuffledTerms = [...gameData].sort(() => Math.random() - 0.5);
+            const shuffledDefinitions = [...gameData].sort(() => Math.random() - 0.5);
+            
+            renderTerms(shuffledTerms);
+            renderDefinitions(shuffledDefinitions);
+            
+            document.getElementById('celebration').classList.add('hidden');
+            document.getElementById('hint-display').classList.add('hidden');
+        }
+
+        function renderTerms(terms) {
+            const container = document.getElementById('terms-container');
+            container.innerHTML = '';
+            
+            terms.forEach((item, index) => {
+                const termElement = document.createElement('div');
+                termElement.className = 'term-card bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-lg cursor-pointer card-hover transition-all';
+                termElement.dataset.term = item.term;
+                termElement.innerHTML = `
+                    <div class="font-bold text-lg">${item.term}</div>
+                `;
+                termElement.addEventListener('click', () => selectTerm(termElement, item.term));
+                container.appendChild(termElement);
+            });
+        }
+
+        function renderDefinitions(definitions) {
+            const container = document.getElementById('definitions-container');
+            container.innerHTML = '';
+            
+            definitions.forEach((item, index) => {
+                const defElement = document.createElement('div');
+                defElement.className = 'definition-card bg-green-500 hover:bg-green-600 text-white p-4 rounded-lg cursor-pointer card-hover transition-all';
+                defElement.dataset.definition = item.term;
+                defElement.innerHTML = `
+                    <div class="text-sm leading-relaxed">${item.definition}</div>
+                `;
+                defElement.addEventListener('click', () => selectDefinition(defElement, item.term));
+                container.appendChild(defElement);
+            });
+        }
+
+        function selectTerm(element, term) {
+            // Remove previous selection
+            document.querySelectorAll('.term-card').forEach(card => {
+                card.classList.remove('ring-4', 'ring-yellow-400', 'bg-blue-700');
+                card.classList.add('bg-blue-500');
+            });
+            
+            // Select current term
+            element.classList.add('ring-4', 'ring-yellow-400', 'bg-blue-700');
+            element.classList.remove('bg-blue-500');
+            selectedTerm = term;
+            
+            checkMatch();
+        }
+
+        function selectDefinition(element, term) {
+            // Remove previous selection
+            document.querySelectorAll('.definition-card').forEach(card => {
+                card.classList.remove('ring-4', 'ring-yellow-400', 'bg-green-700');
+                card.classList.add('bg-green-500');
+            });
+            
+            // Select current definition
+            element.classList.add('ring-4', 'ring-yellow-400', 'bg-green-700');
+            element.classList.remove('bg-green-500');
+            selectedDefinition = term;
+            
+            checkMatch();
+        }
+
+        function checkMatch() {
+            if (selectedTerm && selectedDefinition) {
+                if (selectedTerm === selectedDefinition) {
+                    // Correct match!
+                    handleCorrectMatch();
+                } else {
+                    // Wrong match
+                    handleWrongMatch();
+                }
+            }
+        }
+
+        function handleCorrectMatch() {
+            matches++;
+            updateScore();
+            
+            // Find and animate matched elements
+            const termElement = document.querySelector(`[data-term="${selectedTerm}"]`);
+            const defElement = document.querySelector(`[data-definition="${selectedDefinition}"]`);
+            
+            // Add success styling and animation
+            termElement.classList.add('match-animation', 'bg-purple-600', 'ring-green-400');
+            defElement.classList.add('match-animation', 'bg-purple-600', 'ring-green-400');
+            
+            // Disable matched elements
+            setTimeout(() => {
+                termElement.classList.add('opacity-50', 'cursor-not-allowed');
+                defElement.classList.add('opacity-50', 'cursor-not-allowed');
+                termElement.onclick = null;
+                defElement.onclick = null;
+                
+                // Reset selections
+                selectedTerm = null;
+                selectedDefinition = null;
+                
+                // Check if game is complete
+                if (matches === gameData.length) {
+                    setTimeout(() => showCelebration(), 500);
+                }
+            }, 400);
+        }
+
+        function handleWrongMatch() {
+            // Find selected elements
+            const termElement = document.querySelector(`[data-term="${selectedTerm}"]`);
+            const defElement = document.querySelector(`[data-definition="${selectedDefinition}"]`);
+            
+            // Add wrong animation
+            termElement.classList.add('wrong-animation');
+            defElement.classList.add('wrong-animation');
+            
+            // Reset selections after animation
+            setTimeout(() => {
+                termElement.classList.remove('wrong-animation', 'ring-4', 'ring-yellow-400', 'bg-blue-700');
+                defElement.classList.remove('wrong-animation', 'ring-4', 'ring-yellow-400', 'bg-green-700');
+                termElement.classList.add('bg-blue-500');
+                defElement.classList.add('bg-green-500');
+                
+                selectedTerm = null;
+                selectedDefinition = null;
+            }, 400);
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = matches;
+            document.getElementById('matches').textContent = matches;
+        }
+
+        function updateHints() {
+            document.getElementById('hints-left').textContent = hintsLeft;
+            const hintBtn = document.getElementById('hint-btn');
+            if (hintsLeft === 0) {
+                hintBtn.disabled = true;
+                hintBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function showHint() {
+            if (hintsLeft > 0) {
+                // Find an unmatched term
+                const unmatchedTerms = gameData.filter(item => {
+                    const termElement = document.querySelector(`[data-term="${item.term}"]`);
+                    return !termElement.classList.contains('opacity-50');
+                });
+                
+                if (unmatchedTerms.length > 0) {
+                    const randomTerm = unmatchedTerms[Math.floor(Math.random() * unmatchedTerms.length)];
+                    const hintDisplay = document.getElementById('hint-display');
+                    
+                    hintDisplay.querySelector('p').textContent = `💡 ${randomTerm.term}: ${randomTerm.hint}`;
+                    hintDisplay.classList.remove('hidden');
+                    
+                    hintsLeft--;
+                    updateHints();
+                    
+                    // Hide hint after 8 seconds
+                    setTimeout(() => {
+                        hintDisplay.classList.add('hidden');
+                    }, 8000);
+                }
+            }
+        }
+
+        function showCelebration() {
+            const celebration = document.getElementById('celebration');
+            celebration.classList.remove('hidden');
+            celebration.classList.add('celebration');
+            
+            // Add confetti effect
+            for (let i = 0; i < 50; i++) {
+                createConfetti();
+            }
+        }
+
+        function createConfetti() {
+            const confetti = document.createElement('div');
+            confetti.innerHTML = ['🎉', '🎊', '⭐', '🌟', '✨'][Math.floor(Math.random() * 5)];
+            confetti.style.position = 'fixed';
+            confetti.style.left = Math.random() * 100 + 'vw';
+            confetti.style.top = '-10px';
+            confetti.style.fontSize = '20px';
+            confetti.style.zIndex = '1000';
+            confetti.style.pointerEvents = 'none';
+            
+            document.body.appendChild(confetti);
+            
+            const animation = confetti.animate([
+                { transform: 'translateY(-10px) rotate(0deg)', opacity: 1 },
+                { transform: `translateY(100vh) rotate(360deg)`, opacity: 0 }
+            ], {
+                duration: 3000,
+                easing: 'linear'
+            });
+            
+            animation.onfinish = () => confetti.remove();
+        }
+
+        // Event listeners
+        document.getElementById('hint-btn').addEventListener('click', showHint);
+        document.getElementById('play-again').addEventListener('click', initGame);
+
+        // Initialize game on load
+        initGame();
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9681fdc32369c8bf',t:'MTc1NDAxNjI0MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
